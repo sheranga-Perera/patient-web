@@ -23,10 +23,26 @@ export default function App() {
   const [patientDetails, setPatientDetails] = useState(null);
   const [loadingPatient, setLoadingPatient] = useState(false);
   const [createError, setCreateError] = useState("");
+  const [createFormErrors, setCreateFormErrors] = useState({});
+  const [editFormErrors, setEditFormErrors] = useState({});
+  const [notification, setNotification] = useState({ show: false, message: "", type: "" });
 
   useEffect(() => {
     loadPatients();
   }, []);
+
+  useEffect(() => {
+    if (notification.show) {
+      const timer = setTimeout(() => {
+        setNotification({ show: false, message: "", type: "" });
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification.show]);
+
+  function showNotification(message, type) {
+    setNotification({ show: true, message, type });
+  }
 
   function loadPatients() {
     fetch(API_URL)
@@ -37,37 +53,117 @@ export default function App() {
   function handleEditClick(patient) {
     setEditingPatient(patient.id);
     setEditForm({ ...patient });
+    setEditFormErrors({});
   }
 
   function handleEditChange(e) {
-    setEditForm({ ...editForm, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setEditForm({ ...editForm, [name]: value });
+    // Clear error for this field when user starts typing
+    if (editFormErrors[name]) {
+      setEditFormErrors({ ...editFormErrors, [name]: "" });
+    }
+  }
+
+  function handleEditBlur(e) {
+    const { name, value } = e.target;
+    const error = validateField(name, value);
+    if (error) {
+      setEditFormErrors({ ...editFormErrors, [name]: error });
+    }
+  }
+
+  function validateForm(formData) {
+    const errors = {};
+    Object.keys(formData).forEach(key => {
+      const error = validateField(key, formData[key] || "");
+      if (error) {
+        errors[key] = error;
+      }
+    });
+    return errors;
   }
 
   function handleSaveEdit(id) {
+    const errors = validateForm(editForm);
+    setEditFormErrors(errors);
+    
+    if (Object.keys(errors).length > 0) {
+      return; // Don't submit if there are validation errors
+    }
+    
     if (window.confirm("Are you sure you want to update this patient?")) {
       fetch(`${API_URL}/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(editForm)
-      }).then(() => {
-        setEditingPatient(null);
-        loadPatients();
-      });
+      })
+        .then(async (res) => {
+          if (!res.ok) {
+            const errorData = await res.json().catch(() => ({ message: res.statusText }));
+            throw new Error(errorData.message || errorData.error || "Failed to update patient");
+          }
+          return res.json();
+        })
+        .then(() => {
+          setEditingPatient(null);
+          setEditForm({});
+          setEditFormErrors({});
+          loadPatients();
+          showNotification("Patient updated successfully!", "success");
+        })
+        .catch((error) => {
+          const errorMessage = error.message || "An error occurred while updating the patient";
+          if (errorMessage.toLowerCase().includes("email") ||
+              errorMessage.toLowerCase().includes("duplicate") ||
+              errorMessage.toLowerCase().includes("already exists") ||
+              errorMessage.toLowerCase().includes("unique")) {
+            setEditFormErrors({ ...editFormErrors, email: "A patient with this email address already exists. Please use a different email." });
+            showNotification("A patient with this email address already exists.", "error");
+          } else {
+            showNotification(errorMessage, "error");
+          }
+        });
     }
   }
 
   function handleCancelEdit() {
     setEditingPatient(null);
     setEditForm({});
+    setEditFormErrors({});
   }
 
   function handleNewPatientChange(e) {
-    setNewPatientForm({ ...newPatientForm, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setNewPatientForm({ ...newPatientForm, [name]: value });
+    // Clear error for this field when user starts typing
+    if (createFormErrors[name]) {
+      setCreateFormErrors({ ...createFormErrors, [name]: "" });
+    }
+    // Clear general create error if email field is being edited
+    if (name === "email" && createError) {
+      setCreateError("");
+    }
+  }
+
+  function handleNewPatientBlur(e) {
+    const { name, value } = e.target;
+    const error = validateField(name, value);
+    if (error) {
+      setCreateFormErrors({ ...createFormErrors, [name]: error });
+    }
   }
 
   function handleAddPatient(e) {
     e.preventDefault();
     setCreateError("");
+    
+    const errors = validateForm(newPatientForm);
+    setCreateFormErrors(errors);
+    
+    if (Object.keys(errors).length > 0) {
+      return; // Don't submit if there are validation errors
+    }
 
     fetch(API_URL, {
       method: "POST",
@@ -93,8 +189,10 @@ export default function App() {
             email: ""
           });
           setCreateError("");
+          setCreateFormErrors({});
           setShowAddForm(false);
           loadPatients();
+          showNotification("Patient created successfully!", "success");
         })
         .catch((error) => {
           const errorMessage = error.message || "An error occurred while creating the patient";
@@ -102,9 +200,11 @@ export default function App() {
               errorMessage.toLowerCase().includes("duplicate") ||
               errorMessage.toLowerCase().includes("already exists") ||
               errorMessage.toLowerCase().includes("unique")) {
-            setCreateError("A patient with this email address already exists. Please use a different email.");
+            setCreateFormErrors({ ...createFormErrors, email: "A patient with this email address already exists. Please use a different email." });
+            showNotification("A patient with this email address already exists.", "error");
           } else {
             setCreateError(errorMessage);
+            showNotification(errorMessage, "error");
           }
         });
   }
@@ -112,7 +212,21 @@ export default function App() {
   function deletePatient(id) {
     if (window.confirm("Are you sure you want to delete this patient?")) {
       fetch(`${API_URL}/${id}`, { method: "DELETE" })
-          .then(() => loadPatients());
+          .then(async (res) => {
+            if (!res.ok) {
+              const errorData = await res.json().catch(() => ({ message: res.statusText }));
+              throw new Error(errorData.message || errorData.error || "Failed to delete patient");
+            }
+            return res.json();
+          })
+          .then(() => {
+            loadPatients();
+            showNotification("Patient deleted successfully!", "success");
+          })
+          .catch((error) => {
+            const errorMessage = error.message || "An error occurred while deleting the patient";
+            showNotification(errorMessage, "error");
+          });
     }
   }
 
@@ -156,6 +270,104 @@ export default function App() {
     email: "Email"
   };
 
+  function validateField(name, value) {
+    const trimmedValue = value.trim();
+    
+    switch (name) {
+      case "firstName":
+      case "lastName":
+        if (!trimmedValue) {
+          return `${fieldLabels[name]} is required`;
+        }
+        if (trimmedValue.length < 2) {
+          return `${fieldLabels[name]} must be at least 2 characters`;
+        }
+        if (trimmedValue.length > 100) {
+          return `${fieldLabels[name]} must be less than 100 characters`;
+        }
+        if (!/^[a-zA-Z\s'-]+$/.test(trimmedValue)) {
+          return `${fieldLabels[name]} can only contain letters, spaces, hyphens, and apostrophes`;
+        }
+        return "";
+      
+      case "email":
+        if (!trimmedValue) {
+          return "Email is required";
+        }
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(trimmedValue)) {
+          return "Please enter a valid email address";
+        }
+        if (trimmedValue.length > 100) {
+          return "Email must be less than 100 characters";
+        }
+        return "";
+      
+      case "phoneNumber":
+        if (!trimmedValue) {
+          return "Phone Number is required";
+        }
+        
+        const phoneRegex = /^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$/;
+        if (!phoneRegex.test(trimmedValue.replace(/\s/g, ""))) {
+          return "Please enter a valid phone number (e.g., (123) 456-7890)";
+        }
+        return "";
+      
+      case "address":
+        if (!trimmedValue) {
+          return "Address is required";
+        }
+        if (trimmedValue.length < 5) {
+          return "Address must be at least 5 characters";
+        }
+        if (trimmedValue.length > 100) {
+          return "Address must be less than 100 characters";
+        }
+        return "";
+      
+      case "city":
+        if (!trimmedValue) {
+          return "City is required";
+        }
+        if (trimmedValue.length < 2) {
+          return "City must be at least 2 characters";
+        }
+        if (trimmedValue.length > 50) {
+          return "City must be less than 50 characters";
+        }
+        if (!/^[a-zA-Z\s'-]+$/.test(trimmedValue)) {
+          return "City can only contain letters, spaces, hyphens, and apostrophes";
+        }
+        return "";
+      
+      case "state":
+        if (!trimmedValue) {
+          return "State is required";
+        }
+        if (trimmedValue.length < 2) {
+          return "State must be at least 2 characters";
+        }
+        if (trimmedValue.length > 50) {
+          return "State must be less than 50 characters";
+        }
+        return "";
+      
+      case "zipCode":
+        if (!trimmedValue) {
+          return "Zip Code is required";
+        }
+        const zipRegex = /^\d{5}(-\d{4})?$/;
+        if (!zipRegex.test(trimmedValue)) {
+          return "Please enter a valid zip code (e.g., 12345 or 12345-6789)";
+        }
+        return "";
+      
+      default:
+        return "";
+    }
+  }
+
   const tableFields = ['firstName', 'lastName', 'email', 'phoneNumber', 'address', 'city', 'state', 'zipCode'];
 
   function filterPatients(patients, query) {
@@ -176,6 +388,21 @@ export default function App() {
 
   return (
       <div className="dashboard-container">
+        {notification.show && (
+            <div className={`toast-notification toast-${notification.type}`}>
+              <span className="toast-icon">
+                {notification.type === "success" ? "✓" : "⚠️"}
+              </span>
+              <span className="toast-message">{notification.message}</span>
+              <button
+                  className="toast-close"
+                  onClick={() => setNotification({ show: false, message: "", type: "" })}
+                  title="Close"
+              >
+                ×
+              </button>
+            </div>
+        )}
         <div className="dashboard-header">
           <h1>Patient Dashboard</h1>
           <button
@@ -183,6 +410,7 @@ export default function App() {
               onClick={() => {
                 setShowAddForm(!showAddForm);
                 setCreateError("");
+                setCreateFormErrors({});
               }}
           >
             {showAddForm ? "Cancel" : "+ Add New Patient"}
@@ -208,15 +436,13 @@ export default function App() {
                             name={key}
                             placeholder={fieldLabels[key]}
                             value={newPatientForm[key]}
-                            onChange={(e) => {
-                              handleNewPatientChange(e);
-                              if (createError && key === "email") {
-                                setCreateError("");
-                              }
-                            }}
-                            required
-                            className={createError && key === "email" ? "input-error" : ""}
+                            onChange={handleNewPatientChange}
+                            onBlur={handleNewPatientBlur}
+                            className={createFormErrors[key] ? "input-error" : ""}
                         />
+                        {createFormErrors[key] && (
+                            <span className="field-error">{createFormErrors[key]}</span>
+                        )}
                       </div>
                   ))}
                 </div>
@@ -268,13 +494,19 @@ export default function App() {
                       <>
                         {tableFields.map(key => (
                             <td key={key}>
-                              <input
-                                  type={key === "email" ? "email" : key === "phoneNumber" ? "tel" : "text"}
-                                  name={key}
-                                  value={editForm[key] || ""}
-                                  onChange={handleEditChange}
-                                  className="table-input"
-                              />
+                              <div className="table-input-wrapper">
+                                <input
+                                    type={key === "email" ? "email" : key === "phoneNumber" ? "tel" : "text"}
+                                    name={key}
+                                    value={editForm[key] || ""}
+                                    onChange={handleEditChange}
+                                    onBlur={handleEditBlur}
+                                    className={`table-input ${editFormErrors[key] ? "input-error" : ""}`}
+                                />
+                                {editFormErrors[key] && (
+                                    <span className="table-field-error">{editFormErrors[key]}</span>
+                                )}
+                              </div>
                             </td>
                         ))}
                         <td className="actions-cell">
