@@ -59,7 +59,7 @@ export default function App() {
   function handleEditChange(e) {
     const { name, value } = e.target;
     setEditForm({ ...editForm, [name]: value });
-    // Clear error for this field when user starts typing
+    
     if (editFormErrors[name]) {
       setEditFormErrors({ ...editFormErrors, [name]: "" });
     }
@@ -89,7 +89,7 @@ export default function App() {
     setEditFormErrors(errors);
     
     if (Object.keys(errors).length > 0) {
-      return; // Don't submit if there are validation errors
+      return;
     }
     
     if (window.confirm("Are you sure you want to update this patient?")) {
@@ -136,11 +136,9 @@ export default function App() {
   function handleNewPatientChange(e) {
     const { name, value } = e.target;
     setNewPatientForm({ ...newPatientForm, [name]: value });
-    // Clear error for this field when user starts typing
     if (createFormErrors[name]) {
       setCreateFormErrors({ ...createFormErrors, [name]: "" });
     }
-    // Clear general create error if email field is being edited
     if (name === "email" && createError) {
       setCreateError("");
     }
@@ -162,7 +160,7 @@ export default function App() {
     setCreateFormErrors(errors);
     
     if (Object.keys(errors).length > 0) {
-      return; // Don't submit if there are validation errors
+      return;
     }
 
     fetch(API_URL, {
@@ -217,7 +215,8 @@ export default function App() {
               const errorData = await res.json().catch(() => ({ message: res.statusText }));
               throw new Error(errorData.message || errorData.error || "Failed to delete patient");
             }
-            return res.json();
+            const text = await res.text();
+            return text ? JSON.parse(text) : null;
           })
           .then(() => {
             loadPatients();
