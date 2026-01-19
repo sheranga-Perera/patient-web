@@ -16,6 +16,100 @@ body {
   max-width: 1400px;
   margin: 0 auto;
   padding: 30px 20px;
+  position: relative;
+}
+
+.toast-notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  min-width: 300px;
+  max-width: 500px;
+  padding: 16px 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 2000;
+  animation: slideInRight 0.3s ease-out;
+  font-weight: 500;
+}
+
+.toast-success {
+  background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+  color: white;
+  border-left: 4px solid #1e8449;
+}
+
+.toast-error {
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+  color: white;
+  border-left: 4px solid #a93226;
+}
+
+.toast-icon {
+  font-size: 1.5rem;
+  font-weight: bold;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  font-size: 1rem;
+}
+
+.toast-message {
+  flex: 1;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.toast-close {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+  transition: background-color 0.2s;
+  flex-shrink: 0;
+}
+
+.toast-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutRight {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
 }
 
 .dashboard-header {
@@ -119,6 +213,22 @@ body {
   background: rgba(255, 245, 245, 0.95);
 }
 
+.field-error {
+  color: #e74c3c;
+  font-size: 0.85rem;
+  margin-top: 4px;
+  font-weight: 500;
+  display: block;
+}
+
+.add-patient-card .field-error {
+  color: rgba(255, 255, 255, 0.95);
+  background: rgba(231, 76, 60, 0.2);
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(231, 76, 60, 0.4);
+}
+
 .patient-form {
   margin-top: 20px;
 }
@@ -126,6 +236,20 @@ body {
 .error-message {
   background: rgba(231, 76, 60, 0.15);
   border: 2px solid rgba(231, 76, 60, 0.5);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: white;
+  font-weight: 500;
+  animation: slideDown 0.3s ease-out;
+}
+
+.success-message {
+  background: rgba(39, 174, 96, 0.15);
+  border: 2px solid rgba(39, 174, 96, 0.5);
   border-radius: 8px;
   padding: 12px 16px;
   margin-bottom: 20px;
@@ -215,7 +339,11 @@ body {
   padding: 14px 12px;
   color: #2c3e50;
   font-size: 0.95rem;
-  vertical-align: middle;
+  vertical-align: top;
+}
+
+.patients-table tbody tr.editing-row td {
+  padding: 10px 12px;
 }
 
 .patients-table td:first-child {
@@ -238,6 +366,33 @@ body {
   outline: none;
   border-color: #764ba2;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.table-input.input-error {
+  border-color: #e74c3c;
+  background-color: #fff5f5;
+}
+
+.table-input.input-error:focus {
+  border-color: #e74c3c;
+  box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1);
+}
+
+.table-input-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.table-field-error {
+  color: #e74c3c;
+  font-size: 0.7rem;
+  margin-top: 4px;
+  font-weight: 500;
+  line-height: 1.3;
+  display: block;
+  word-wrap: break-word;
+  max-width: 150px;
 }
 
 .actions-cell {
@@ -305,6 +460,16 @@ body {
 .form-field input:focus {
   outline: none;
   border-color: #667eea;
+}
+
+.form-field input.input-error {
+  border-color: #e74c3c;
+  background-color: #fff5f5;
+}
+
+.form-field input.input-error:focus {
+  border-color: #e74c3c;
+  box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1);
 }
 
 .form-actions {
@@ -576,5 +741,13 @@ body {
 
   .form-cell {
     min-width: 100px;
+  }
+
+  .toast-notification {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    min-width: auto;
+    max-width: none;
   }
 }
